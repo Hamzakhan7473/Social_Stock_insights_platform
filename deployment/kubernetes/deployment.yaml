@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: social-stock-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: social-stock-backend
+  template:
+    metadata:
+      labels:
+        app: social-stock-backend
+    spec:
+      containers:
+      - name: backend
+        image: social-stock-backend:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: social-stock-secrets
+              key: database-url
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: social-stock-secrets
+              key: openai-api-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: social-stock-backend-service
+spec:
+  selector:
+    app: social-stock-backend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: LoadBalancer
+
