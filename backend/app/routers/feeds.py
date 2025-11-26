@@ -2,7 +2,7 @@
 Feeds router for personalized feed generation
 """
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from app.database import get_db
 from app import models, schemas
@@ -36,15 +36,16 @@ async def get_personalized_feed(
                 "risk_tolerance": pref.risk_tolerance
             }
     
-    # Get all posts
-    posts = db.query(models.Post).all()
+    # Get all posts with author relationship loaded
+    posts = db.query(models.Post).options(joinedload(models.Post.author)).all()
     
     # Convert to dict format for ranking
     posts_data = []
     tickers = set()
     
     for post in posts:
-        tickers.add(post.ticker)
+        if post.ticker:
+            tickers.add(post.ticker)
         posts_data.append({
             "id": post.id,
             "title": post.title,
@@ -70,14 +71,15 @@ async def get_personalized_feed(
     # Rank posts
     ranked_posts = llm_service.rank_posts(posts_data, user_preferences, market_context)
     
-    # Generate explanations for top posts
+    # Generate explanations for top posts with market context
     for post_data in ranked_posts[:5]:
         post_obj = db.query(models.Post).filter(models.Post.id == post_data["id"]).first()
         if post_obj:
             explanation = llm_service.generate_explanation(
                 post_data,
                 user_id,
-                post_data.get("ranking_score", 0)
+                post_data.get("ranking_score", 0),
+                market_context=market_context
             )
             post_obj.llm_explanation = explanation
             db.commit()
@@ -87,9 +89,9 @@ async def get_personalized_feed(
     end = start + page_size
     paginated_posts = ranked_posts[start:end]
     
-    # Get full post objects
+    # Get full post objects with author relationship loaded
     post_ids = [p["id"] for p in paginated_posts]
-    full_posts = db.query(models.Post).filter(models.Post.id.in_(post_ids)).all()
+    full_posts = db.query(models.Post).options(joinedload(models.Post.author)).filter(models.Post.id.in_(post_ids)).all()
     
     # Sort by ranking order
     post_dict = {p.id: p for p in full_posts}

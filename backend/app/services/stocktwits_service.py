@@ -19,7 +19,7 @@ class StockTwitsService:
     def __init__(self):
         self.api_key = getattr(settings, 'STOCKTWITS_API_KEY', None)
         self.base_url = "https://stocktwits.com/api/2"
-        self.rapidapi_url = "https://stocktwits-api.p.rapidapi.com"
+        self.rapidapi_url = "https://stocktwits.p.rapidapi.com"
         self.use_rapidapi = self.api_key is not None
     
     def get_sentiment(self, ticker: str) -> Dict[str, Any]:
@@ -37,20 +37,27 @@ class StockTwitsService:
         """Get sentiment using RapidAPI StockTwits API"""
         try:
             with httpx.Client() as client:
+                # Use the stream endpoint to get messages for the ticker
                 response = client.get(
-                    f"{self.rapidapi_url}/sentiment/{ticker}",
+                    f"{self.rapidapi_url}/streams/symbol/{ticker}.json",
                     headers={
                         "X-RapidAPI-Key": self.api_key,
-                        "X-RapidAPI-Host": "stocktwits-api.p.rapidapi.com"
+                        "X-RapidAPI-Host": "stocktwits.p.rapidapi.com"
                     },
                     timeout=10.0
                 )
                 
                 if response.status_code == 200:
                     data = response.json()
-                    return self._parse_sentiment_response(data, ticker)
+                    # Parse the response - StockTwits API returns messages in 'messages' array
+                    return self._parse_stream_response(data, ticker)
+                else:
+                    print(f"StockTwits API returned status {response.status_code}: {response.text[:200]}")
+                    return self._empty_sentiment(ticker)
         except Exception as e:
             print(f"Error fetching StockTwits sentiment for {ticker}: {e}")
+            import traceback
+            traceback.print_exc()
         
         return self._empty_sentiment(ticker)
     
@@ -94,19 +101,29 @@ class StockTwitsService:
         }
     
     def _parse_stream_response(self, data: Dict, ticker: str) -> Dict[str, Any]:
-        """Parse public API stream response"""
+        """Parse StockTwits stream API response"""
         messages = data.get("messages", [])
         
         bullish = 0
         bearish = 0
         
         for message in messages:
-            sentiment = message.get("sentiment", {})
+            # StockTwits API structure: message.sentiment can be a dict or None
+            sentiment = message.get("sentiment")
             if sentiment:
-                if sentiment.get("class") == "bullish":
-                    bullish += 1
-                elif sentiment.get("class") == "bearish":
-                    bearish += 1
+                # Check different possible sentiment field names
+                if isinstance(sentiment, dict):
+                    sentiment_class = sentiment.get("class") or sentiment.get("basic")
+                    if sentiment_class in ["bullish", "Bullish"]:
+                        bullish += 1
+                    elif sentiment_class in ["bearish", "Bearish"]:
+                        bearish += 1
+                elif isinstance(sentiment, str):
+                    # Sometimes sentiment is just a string
+                    if sentiment.lower() == "bullish":
+                        bullish += 1
+                    elif sentiment.lower() == "bearish":
+                        bearish += 1
         
         total = bullish + bearish
         sentiment_score = 0.0

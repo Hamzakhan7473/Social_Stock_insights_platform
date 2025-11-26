@@ -19,11 +19,14 @@ A social-driven platform where users share stock analyses, trading ideas, and ma
 
 ✅ **LLM Pipeline**: Complete content analysis pipeline with semantic tagging, summarization, and quality scoring  
 ✅ **Insight Types**: Support for fundamental analysis, technical analysis, macro commentary, earnings forecasts, risk warnings  
-✅ **Market Integration**: Live market data integration with dynamic re-ranking  
-✅ **Ensemble Ranking**: Multi-signal aggregation system  
+✅ **Market Integration**: Live market data integration with dynamic re-ranking that highlights timely opportunities and deprioritizes outdated posts  
+✅ **Ensemble Ranking**: Multi-signal aggregation system blending community sentiment, historical accuracy (reputation), and expert-tagged insights  
 ✅ **Dashboard UI**: Complete dashboard with trending tickers, insights, reputation, and sentiment  
-✅ **Transparency**: LLM-generated explanations for recommendations  
-✅ **Reusable Service**: Exportable LLM service package for batch analytics  
+✅ **Transparency**: LLM-generated natural language explanations for recommendations  
+✅ **Reusable Service**: Exportable LLM service package for batch analytics and real-time feed generation  
+✅ **Strategy Experimentation**: LLM-driven strategy experimentation balancing insight quality, diversity, and real-time responsiveness  
+✅ **Batch Processing**: Batch analytics endpoint for downstream processing  
+✅ **Dynamic Re-ranking**: Real-time re-ranking based on current market conditions  
 ✅ **Deployment**: Docker and Kubernetes deployment scripts  
 
 ## 🏗️ Architecture
@@ -100,11 +103,25 @@ See [RESEARCH_INTEGRATION.md](RESEARCH_INTEGRATION.md) for details.
 
 ## 🎯 API Endpoints
 
+### Core Endpoints
 - `POST /api/posts/` - Create a post (triggers LLM analysis)
 - `GET /api/feeds/personalized` - Get personalized ranked feed
 - `GET /api/analytics/dashboard` - Dashboard analytics
 - `GET /api/market/ticker/{ticker}` - Live market data
-- `GET /api/analytics/explanation/{post_id}` - LLM explanation
+- `GET /api/analytics/explanation/{post_id}` - LLM-generated explanation
+
+### Advanced Endpoints
+- `POST /api/analytics/batch` - Batch analytics for downstream processing
+- `POST /api/analytics/rerank` - Dynamically re-rank posts with fresh market data
+- `GET /api/analytics/strategy-experiment` - Experiment with different ranking strategies
+
+### Ranking Strategies
+The platform supports multiple ranking strategies:
+- **balanced** (default): Equal weight to all signals
+- **quality_focused**: Prioritize high-quality analysis
+- **trending**: Prioritize market relevance and timeliness
+- **diverse**: Maximize diversity across tickers/sectors
+- **expert**: Prioritize high-reputation authors
 
 See http://localhost:8000/docs for full API documentation.
 

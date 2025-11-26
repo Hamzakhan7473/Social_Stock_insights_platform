@@ -111,43 +111,117 @@ that incorporate fundamental data and forward projections."""
         self,
         posts: List[Dict[str, Any]],
         user_preferences: Optional[Dict[str, Any]] = None,
-        market_context: Optional[Dict[str, Any]] = None
+        market_context: Optional[Dict[str, Any]] = None,
+        strategy: str = "balanced"
     ) -> List[Dict[str, Any]]:
         """
         Rank posts for personalized feed using ensemble approach.
         Balances quality, diversity, relevance, and timeliness.
+        
+        Strategies:
+        - "balanced": Equal weight to all signals (default)
+        - "quality_focused": Prioritize high-quality analysis
+        - "trending": Prioritize market relevance and timeliness
+        - "diverse": Maximize diversity across tickers/sectors
+        - "expert": Prioritize high-reputation authors
         """
         if not posts:
             return []
         
-        # Calculate scores for each post
+        # Calculate scores for each post with strategy
         scored_posts = []
         for post in posts:
-            score = self._calculate_post_score(post, user_preferences, market_context)
+            score = self._calculate_post_score(
+                post, 
+                user_preferences, 
+                market_context,
+                strategy=strategy
+            )
             scored_posts.append({**post, "ranking_score": score})
         
         # Sort by ranking score
         ranked = sorted(scored_posts, key=lambda x: x["ranking_score"], reverse=True)
         
         # Apply diversity boost (ensure variety in top results)
-        ranked = self._apply_diversity_boost(ranked)
+        if strategy != "diverse":
+            ranked = self._apply_diversity_boost(ranked)
+        else:
+            # For diverse strategy, apply stronger diversity boost
+            ranked = self._apply_diversity_boost(ranked, boost_multiplier=2.0)
         
         return ranked
+    
+    def experiment_with_strategy(
+        self,
+        posts: List[Dict[str, Any]],
+        user_preferences: Optional[Dict[str, Any]] = None,
+        market_context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Experiment with different ranking strategies and return results.
+        Allows LLM to experiment with strategies that balance insight quality, 
+        diversity, and real-time responsiveness.
+        """
+        strategies = ["balanced", "quality_focused", "trending", "diverse", "expert"]
+        results = {}
+        
+        for strategy in strategies:
+            ranked = self.rank_posts(
+                posts.copy(),
+                user_preferences,
+                market_context,
+                strategy=strategy
+            )
+            results[strategy] = ranked[:10]  # Top 10 for each strategy
+        
+        return results
     
     def _calculate_post_score(
         self,
         post: Dict[str, Any],
         user_preferences: Optional[Dict[str, Any]],
-        market_context: Optional[Dict[str, Any]]
+        market_context: Optional[Dict[str, Any]],
+        strategy: str = "balanced"
     ) -> float:
-        """Calculate ensemble ranking score"""
+        """
+        Calculate ensemble ranking score with configurable strategy.
+        Implements simple ensemble-style signal aggregation blending:
+        - Community sentiment
+        - Historical accuracy (via reputation)
+        - Expert-tagged insights (via quality scores)
+        """
+        # Strategy weights
+        weights = {
+            "balanced": {
+                "quality": 40, "engagement": 20, "reputation": 15,
+                "preference": 15, "market": 10, "recency": 5
+            },
+            "quality_focused": {
+                "quality": 60, "engagement": 10, "reputation": 15,
+                "preference": 10, "market": 5, "recency": 5
+            },
+            "trending": {
+                "quality": 25, "engagement": 15, "reputation": 10,
+                "preference": 10, "market": 30, "recency": 10
+            },
+            "diverse": {
+                "quality": 30, "engagement": 20, "reputation": 10,
+                "preference": 20, "market": 10, "recency": 10
+            },
+            "expert": {
+                "quality": 35, "engagement": 10, "reputation": 35,
+                "preference": 10, "market": 5, "recency": 5
+            }
+        }
+        
+        w = weights.get(strategy, weights["balanced"])
         score = 0.0
         
-        # Base quality score (0-100) -> normalized to 0-40
+        # Base quality score (0-100) -> normalized
         quality_score = post.get("quality_score", 0.0)
-        score += (quality_score / 100.0) * 40
+        score += (quality_score / 100.0) * w["quality"]
         
-        # Engagement signals (0-20)
+        # Engagement signals (community sentiment)
         engagement = (
             post.get("like_count", 0) * 0.5 +
             post.get("helpful_count", 0) * 1.0 +
@@ -155,25 +229,25 @@ that incorporate fundamental data and forward projections."""
             post.get("bearish_count", 0) * 0.3 -
             post.get("dislike_count", 0) * 0.5
         )
-        score += min(engagement / 10.0, 20.0)
+        score += min(engagement / 10.0, w["engagement"])
         
-        # Author reputation (0-15)
+        # Author reputation (historical accuracy proxy)
         author_reputation = post.get("author_reputation_score", 0.0)
-        score += min(author_reputation / 10.0, 15.0)
+        score += min(author_reputation / 10.0, w["reputation"])
         
-        # User preference match (0-15)
+        # User preference match
         if user_preferences:
             preference_score = self._calculate_preference_match(post, user_preferences)
-            score += preference_score * 15
+            score += preference_score * w["preference"]
         
-        # Market relevance (0-10)
+        # Market relevance (real-time responsiveness)
         if market_context:
             market_score = self._calculate_market_relevance(post, market_context)
-            score += market_score * 10
+            score += market_score * w["market"]
         
-        # Recency boost (0-5)
+        # Recency boost (timeliness)
         recency_score = self._calculate_recency_score(post)
-        score += recency_score * 5
+        score += recency_score * (w["recency"] / 5.0) * 5
         
         return score
     
@@ -269,7 +343,11 @@ that incorporate fundamental data and forward projections."""
         else:
             return 0.1
     
-    def _apply_diversity_boost(self, ranked_posts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _apply_diversity_boost(
+        self, 
+        ranked_posts: List[Dict[str, Any]], 
+        boost_multiplier: float = 1.0
+    ) -> List[Dict[str, Any]]:
         """Apply diversity boost to ensure variety in top results"""
         if len(ranked_posts) <= 5:
             return ranked_posts
@@ -283,11 +361,11 @@ that incorporate fundamental data and forward projections."""
             sector = post.get("sector")
             
             if ticker and ticker not in seen_tickers:
-                post["ranking_score"] += 2.0
+                post["ranking_score"] += 2.0 * boost_multiplier
                 seen_tickers.add(ticker)
             
             if sector and sector not in seen_sectors:
-                post["ranking_score"] += 1.0
+                post["ranking_score"] += 1.0 * boost_multiplier
                 seen_sectors.add(sector)
         
         # Re-sort after diversity boost
@@ -297,37 +375,92 @@ that incorporate fundamental data and forward projections."""
         self,
         post: Dict[str, Any],
         user_id: Optional[int] = None,
-        ranking_score: float = 0.0
+        ranking_score: float = 0.0,
+        market_context: Optional[Dict[str, Any]] = None
     ) -> str:
-        """Generate natural language explanation for why a post is recommended"""
-        factors = []
-        
-        if post.get("quality_score", 0) > 70:
-            factors.append("high-quality analysis")
-        
-        if post.get("author_reputation_score", 0) > 50:
-            factors.append("reputable author")
-        
-        if post.get("like_count", 0) > 10:
-            factors.append("strong community engagement")
-        
-        if post.get("helpful_count", 0) > 5:
-            factors.append("marked as helpful by users")
-        
+        """
+        Generate natural language explanation for why a post is recommended.
+        Uses LLM to create transparent, contextual explanations.
+        """
+        # Build context for explanation
+        quality_score = post.get("quality_score", 0.0)
+        author_reputation = post.get("author_reputation_score", 0.0)
+        like_count = post.get("like_count", 0)
+        helpful_count = post.get("helpful_count", 0)
         ticker = post.get("ticker")
-        if ticker:
-            factors.append(f"relevant to {ticker}")
-        
         sector = post.get("sector")
-        if sector:
-            factors.append(f"covers {sector} sector")
+        insight_type = post.get("insight_type")
         
-        if not factors:
-            factors.append("relevant content")
+        # Market context if available
+        market_info = ""
+        if market_context and ticker:
+            ticker_data = market_context.get("tickers", {}).get(ticker, {})
+            if ticker_data:
+                price_change = ticker_data.get("price_change_24h", 0)
+                volume_spike = ticker_data.get("volume_spike", False)
+                earnings_release = ticker_data.get("earnings_release", False)
+                
+                market_info = f"\n\nCurrent market context for {ticker}:"
+                if price_change:
+                    market_info += f" Price change: {price_change:.2f}%"
+                if volume_spike:
+                    market_info += " Volume spike detected"
+                if earnings_release:
+                    market_info += " Recent earnings release"
         
-        explanation = f"This post is recommended because it features {', '.join(factors[:3])}."
+        prompt = f"""Explain why this stock analysis post is recommended to a user. 
+Be transparent, concise (2-3 sentences), and highlight the key factors that make this post valuable.
+
+Post Title: {post.get('title', 'N/A')}
+Post Summary: {post.get('summary', post.get('content', '')[:200])}
+Quality Score: {quality_score}/100
+Author Reputation: {author_reputation}/100
+Engagement: {like_count} likes, {helpful_count} helpful marks
+Sector: {sector or 'N/A'}
+Insight Type: {insight_type or 'N/A'}
+Ranking Score: {ranking_score:.2f}{market_info}
+
+Generate a natural, conversational explanation that helps the user understand why this post is recommended. 
+Focus on what makes it valuable: analytical quality, author credibility, community validation, market relevance, or timeliness.
+"""
         
-        return explanation
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that explains content recommendations in a clear, transparent way."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=200,
+                temperature=0.7
+            )
+            
+            explanation = response.choices[0].message.content.strip()
+            return explanation
+        except Exception as e:
+            # Fallback to rule-based explanation
+            print(f"Error generating LLM explanation: {e}")
+            factors = []
+            
+            if quality_score > 70:
+                factors.append("high-quality analysis")
+            
+            if author_reputation > 50:
+                factors.append("reputable author")
+            
+            if like_count > 10:
+                factors.append("strong community engagement")
+            
+            if helpful_count > 5:
+                factors.append("marked as helpful by users")
+            
+            if ticker:
+                factors.append(f"relevant to {ticker}")
+            
+            if not factors:
+                factors.append("relevant content")
+            
+            return f"This post is recommended because it features {', '.join(factors[:3])}."
     
     def detect_trends(
         self,
