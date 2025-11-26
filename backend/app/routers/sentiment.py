@@ -11,6 +11,15 @@ router = APIRouter()
 stocktwits_service = StockTwitsService()
 
 
+@router.get("/stocktwits/batch")
+async def get_batch_sentiment(tickers: str):
+    """Get sentiment for multiple tickers (comma-separated)"""
+    ticker_list = [t.strip().upper() for t in tickers.split(",")]
+    sentiments = stocktwits_service.get_multiple_sentiments(ticker_list)
+    # Return the dict directly - handles partial failures gracefully
+    return sentiments
+
+
 @router.get("/stocktwits/{ticker}")
 async def get_stocktwits_sentiment(ticker: str):
     """Get StockTwits sentiment for a ticker"""
@@ -23,12 +32,4 @@ async def get_stocktwits_sentiment(ticker: str):
         )
     
     return sentiment
-
-
-@router.get("/stocktwits/batch")
-async def get_batch_sentiment(tickers: str):
-    """Get sentiment for multiple tickers (comma-separated)"""
-    ticker_list = [t.strip().upper() for t in tickers.split(",")]
-    sentiments = stocktwits_service.get_multiple_sentiments(ticker_list)
-    return sentiments
 

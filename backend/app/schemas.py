@@ -21,7 +21,7 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: int
     reputation_score: float
-    is_verified: bool
+    is_verified: bool = False
     created_at: datetime
     
     class Config:
@@ -129,4 +129,37 @@ class ExplanationResponse(BaseModel):
     explanation: str
     factors: Dict[str, Any]
     confidence_score: float
+
+
+class BatchAnalyticsRequest(BaseModel):
+    post_ids: Optional[List[int]] = None
+    tickers: Optional[List[str]] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    include_market_data: bool = True
+    include_sentiment: bool = True
+
+
+class BatchAnalyticsResponse(BaseModel):
+    posts_analyzed: int
+    average_quality_score: float
+    total_engagement: int
+    trending_tickers: List[TrendingTicker]
+    sentiment_distribution: Dict[str, int]
+    top_insights: List[PostResponse]
+    market_trends: List[Dict[str, Any]]
+    processing_time_ms: float
+
+
+class ReRankRequest(BaseModel):
+    post_ids: List[int]
+    strategy: Optional[str] = "balanced"
+    user_preferences: Optional[Dict[str, Any]] = None
+
+
+class ReRankResponse(BaseModel):
+    ranked_posts: List[PostResponse]
+    strategy_used: str
+    market_context_applied: bool
+    explanations: Dict[int, str]  # post_id -> explanation
 

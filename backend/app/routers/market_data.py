@@ -4,6 +4,7 @@ Market data router for live market information
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from datetime import datetime, timezone
 from app.database import get_db
 from app import models, schemas
 from app.services.market_data_service import MarketDataService
@@ -17,8 +18,19 @@ async def get_ticker_data(ticker: str):
     """Get current market data for a ticker"""
     data = market_service.get_ticker_data(ticker)
     
-    if data.get("current_price") == 0:
-        raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found")
+    # Only return 404 if we truly couldn't get any data
+    # If we have price data (even if other fields are missing), return it
+    if data.get("current_price") == 0 and not data.get("last_updated"):
+        raise HTTPException(status_code=404, detail=f"Ticker {ticker} not found or unavailable")
+    
+    # Parse last_updated string to datetime if needed
+    last_updated = data.get("last_updated")
+    if isinstance(last_updated, str):
+        from datetime import datetime
+        try:
+            last_updated = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+        except:
+            last_updated = datetime.now(timezone.utc)
     
     return {
         "ticker": data["ticker"],
@@ -27,7 +39,7 @@ async def get_ticker_data(ticker: str):
         "volume_24h": data["volume_24h"],
         "volume_change_24h": data["volume_change_24h"],
         "market_cap": data.get("market_cap"),
-        "last_updated": data["last_updated"]
+        "last_updated": last_updated
     }
 
 

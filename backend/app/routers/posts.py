@@ -2,7 +2,7 @@
 Posts router for creating, reading, and managing posts
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from app.database import get_db
 from app import models, schemas
@@ -41,6 +41,9 @@ async def create_post(
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
+    
+    # Load author relationship for response
+    db_post = db.query(models.Post).options(joinedload(models.Post.author)).filter(models.Post.id == db_post.id).first()
     
     # Trigger LLM analysis in background
     background_tasks.add_task(analyze_post_background, db_post.id, db)
@@ -108,7 +111,7 @@ def update_author_reputation(author_id: int, db: Session):
 @router.get("/{post_id}", response_model=schemas.PostResponse)
 async def get_post(post_id: int, db: Session = Depends(get_db)):
     """Get a single post by ID"""
-    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    post = db.query(models.Post).options(joinedload(models.Post.author)).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
@@ -128,7 +131,7 @@ async def list_posts(
     db: Session = Depends(get_db)
 ):
     """List posts with optional filters"""
-    query = db.query(models.Post)
+    query = db.query(models.Post).options(joinedload(models.Post.author))
     
     if ticker:
         query = query.filter(models.Post.ticker == ticker)
@@ -148,7 +151,7 @@ async def create_reaction(
     db: Session = Depends(get_db)
 ):
     """Create a reaction to a post"""
-    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    post = db.query(models.Post).options(joinedload(models.Post.author)).filter(models.Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     

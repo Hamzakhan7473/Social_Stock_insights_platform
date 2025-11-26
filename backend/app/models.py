@@ -110,7 +110,7 @@ class MarketTrend(Base):
     trend_type = Column(String, nullable=False)  # "volume_spike", "price_movement", "earnings_release"
     magnitude = Column(Float, nullable=False)
     detected_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    metadata = Column(JSON, default=dict)
+    trend_metadata = Column(JSON, default=dict)  # Renamed from 'metadata' to avoid SQLAlchemy conflict
 
 
 class UserFeedPreference(Base):
