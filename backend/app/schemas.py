@@ -56,6 +56,7 @@ class PostResponse(PostBase):
     bearish_count: int
     helpful_count: int
     view_count: int
+    comment_count: int = 0
     market_price_at_post: Optional[float] = None
     created_at: datetime
     
@@ -162,4 +163,64 @@ class ReRankResponse(BaseModel):
     strategy_used: str
     market_context_applied: bool
     explanations: Dict[int, str]  # post_id -> explanation
+
+
+# Comment schemas
+class CommentCreate(BaseModel):
+    post_id: int
+    content: str
+    parent_comment_id: Optional[int] = None
+
+
+class CommentResponse(BaseModel):
+    id: int
+    post_id: int
+    author_id: int
+    author: UserResponse
+    parent_comment_id: Optional[int] = None
+    content: str
+    like_count: int
+    created_at: datetime
+    replies: Optional[List['CommentResponse']] = []
+    
+    class Config:
+        from_attributes = True
+
+
+# Message schemas
+class MessageCreate(BaseModel):
+    recipient_id: int
+    content: str
+
+
+class MessageResponse(BaseModel):
+    id: int
+    sender_id: int
+    sender: UserResponse
+    recipient_id: int
+    recipient: UserResponse
+    content: str
+    is_read: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ConversationResponse(BaseModel):
+    user: UserResponse
+    last_message: MessageResponse
+    unread_count: int
+
+
+# Auth schemas
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
+
+class LoginRequest(BaseModel):
+    username: str  # Can be username or email
+    password: str
 

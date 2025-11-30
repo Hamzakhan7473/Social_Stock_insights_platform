@@ -41,6 +41,20 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 
+@router.get("/all", response_model=List[schemas.UserResponse])
+async def get_all_users(db: Session = Depends(get_db)):
+    """Get all users with full details"""
+    users = db.query(models.User).order_by(models.User.reputation_score.desc()).all()
+    return users
+
+
+@router.get("/", response_model=List[schemas.UserResponse])
+async def list_users(limit: int = 50, db: Session = Depends(get_db)):
+    """List users"""
+    users = db.query(models.User).order_by(models.User.reputation_score.desc()).limit(limit).all()
+    return users
+
+
 @router.get("/{user_id}", response_model=schemas.UserResponse)
 async def get_user(user_id: int, db: Session = Depends(get_db)):
     """Get user by ID"""
@@ -48,11 +62,4 @@ async def get_user(user_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
-
-
-@router.get("/", response_model=List[schemas.UserResponse])
-async def list_users(limit: int = 50, db: Session = Depends(get_db)):
-    """List users"""
-    users = db.query(models.User).limit(limit).all()
-    return users
 

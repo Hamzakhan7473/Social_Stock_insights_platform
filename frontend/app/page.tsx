@@ -3,14 +3,38 @@
 import { useEffect, useState } from 'react'
 import Dashboard from './components/Dashboard'
 import Feed from './components/Feed'
+import Chat from './components/Chat'
+import UsersList from './components/UsersList'
 import Header from './components/Header'
-import { BarChart3, RefreshCw, Sparkles } from './components/Icons'
+import { BarChart3, RefreshCw, Sparkles, MessageCircle, Lightbulb, LineChart, Users } from './components/Icons'
+import { useAuth } from './contexts/AuthContext'
+import { useRouter } from 'next/navigation'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'feed'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'feed' | 'chat' | 'users'>('dashboard')
+  const { isAuthenticated, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push('/login')
+    }
+  }, [isAuthenticated, loading, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="w-16 h-16 border-4 border-[#66ff66] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null
+  }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
+    <main className="min-h-screen bg-black">
       <Header />
       
       {/* Hero Section */}
@@ -45,8 +69,8 @@ export default function Home() {
             onClick={() => setActiveTab('dashboard')}
             className={`px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
               activeTab === 'dashboard'
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-xl shadow-blue-500/30 scale-105'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
+                ? 'bg-[#004d00] text-white shadow-xl scale-105'
+                : 'bg-[#002200] text-[#66ff66] hover:bg-[#003300] border-2 border-[#004d00] hover:border-[#66ff66]'
             }`}
           >
             <BarChart3 className={`w-5 h-5 ${activeTab === 'dashboard' ? 'text-white' : 'text-gray-600'}`} />
@@ -56,91 +80,119 @@ export default function Home() {
             onClick={() => setActiveTab('feed')}
             className={`px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
               activeTab === 'feed'
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-xl shadow-blue-500/30 scale-105'
-                : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
+                ? 'bg-[#004d00] text-white shadow-xl scale-105'
+                : 'bg-[#002200] text-[#66ff66] hover:bg-[#003300] border-2 border-[#004d00] hover:border-[#66ff66]'
             }`}
           >
             <RefreshCw className={`w-5 h-5 ${activeTab === 'feed' ? 'text-white' : 'text-gray-600'}`} />
             Personalized Feed
           </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+              activeTab === 'chat'
+                ? 'bg-[#004d00] text-white shadow-xl scale-105'
+                : 'bg-[#002200] text-[#66ff66] hover:bg-[#003300] border-2 border-[#004d00] hover:border-[#66ff66]'
+            }`}
+          >
+            <MessageCircle className={`w-5 h-5 ${activeTab === 'chat' ? 'text-white' : 'text-gray-600'}`} />
+            Chat
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+              activeTab === 'users'
+                ? 'bg-[#004d00] text-white shadow-xl scale-105'
+                : 'bg-[#002200] text-[#66ff66] hover:bg-[#003300] border-2 border-[#004d00] hover:border-[#66ff66]'
+            }`}
+          >
+            <Users className={`w-5 h-5 ${activeTab === 'users' ? 'text-white' : 'text-gray-600'}`} />
+            Users
+          </button>
         </div>
 
         {/* Content */}
         <div className="animate-fade-in">
-          {activeTab === 'dashboard' ? <Dashboard /> : <Feed />}
+          {activeTab === 'dashboard' && <Dashboard />}
+          {activeTab === 'feed' && <Feed />}
+          {activeTab === 'chat' && <Chat />}
+          {activeTab === 'users' && <UsersList />}
         </div>
       </section>
 
       {/* Features Section */}
       <section id="features" className="features">
-        <div className="feature-card">
-          <div className="w-full h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg mb-4 flex items-center justify-center">
-            <span className="text-6xl">📊</span>
+        <div className="feature-card group hover:scale-105 transition-transform duration-300">
+          <div className="w-full h-48 bg-gradient-to-br from-[#004d00] via-[#003300] to-[#002200] rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#66ff66]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <BarChart3 className="w-16 h-16 text-[#66ff66] relative z-10" strokeWidth={1.5} />
           </div>
-          <h3 className="font-bold text-lg mb-2">Real-Time Analytics</h3>
-          <p className="text-gray-600 text-sm">
+          <h3 className="font-bold text-lg mb-2 text-[#66ff66]">Real-Time Analytics</h3>
+          <p className="text-white/80 text-sm leading-relaxed">
             Get instant insights with live market data and AI-powered analysis for smarter investment decisions.
           </p>
         </div>
-        <div className="feature-card">
-          <div className="w-full h-48 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg mb-4 flex items-center justify-center">
-            <span className="text-6xl">🤖</span>
+        <div className="feature-card group hover:scale-105 transition-transform duration-300">
+          <div className="w-full h-48 bg-gradient-to-br from-[#004d00] via-[#003300] to-[#002200] rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#66ff66]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <Sparkles className="w-16 h-16 text-[#66ff66] relative z-10" strokeWidth={1.5} />
           </div>
-          <h3 className="font-bold text-lg mb-2">AI-Powered Feed</h3>
-          <p className="text-gray-600 text-sm">
+          <h3 className="font-bold text-lg mb-2 text-[#66ff66]">AI-Powered Feed</h3>
+          <p className="text-white/80 text-sm leading-relaxed">
             Personalized content recommendations tailored to your investment interests and preferences.
           </p>
         </div>
-        <div className="feature-card">
-          <div className="w-full h-48 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg mb-4 flex items-center justify-center">
-            <span className="text-6xl">💡</span>
+        <div className="feature-card group hover:scale-105 transition-transform duration-300">
+          <div className="w-full h-48 bg-gradient-to-br from-[#004d00] via-[#003300] to-[#002200] rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#66ff66]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <Lightbulb className="w-16 h-16 text-[#66ff66] relative z-10" strokeWidth={1.5} />
           </div>
-          <h3 className="font-bold text-lg mb-2">Smart Insights</h3>
-          <p className="text-gray-600 text-sm">
+          <h3 className="font-bold text-lg mb-2 text-[#66ff66]">Smart Insights</h3>
+          <p className="text-white/80 text-sm leading-relaxed">
             Quality-ranked posts from top contributors with reputation-based credibility scoring.
           </p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer>
+      <footer className="bg-[#001100]">
         <div className="container mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">📈</span>
+                <div className="w-8 h-8 rounded-lg bg-[#004d00] flex items-center justify-center border border-[#66ff66]/30">
+                  <LineChart className="w-4 h-4 text-[#66ff66]" strokeWidth={2} />
                 </div>
-                <span className="font-bold text-gray-900">Stock Insights</span>
+                <span className="font-bold text-white">Stock Insights</span>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-white">
                 AI-powered platform for smarter investment decisions.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Quick Links</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-green-600 transition-colors">Home</a></li>
-                <li><a href="#" className="hover:text-green-600 transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-green-600 transition-colors">Contact</a></li>
+              <h3 className="font-semibold text-[#66ff66] mb-4">Quick Links</h3>
+              <ul className="space-y-2 text-sm text-white">
+                <li><a href="#" className="hover:text-[#66ff66] transition-colors">Home</a></li>
+                <li><a href="#" className="hover:text-[#66ff66] transition-colors">About</a></li>
+                <li><a href="#" className="hover:text-[#66ff66] transition-colors">Contact</a></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li><a href="#" className="hover:text-green-600 transition-colors">Terms & Conditions</a></li>
-                <li><a href="#" className="hover:text-green-600 transition-colors">Privacy Policy</a></li>
+              <h3 className="font-semibold text-[#66ff66] mb-4">Legal</h3>
+              <ul className="space-y-2 text-sm text-white">
+                <li><a href="#" className="hover:text-[#66ff66] transition-colors">Terms & Conditions</a></li>
+                <li><a href="#" className="hover:text-[#66ff66] transition-colors">Privacy Policy</a></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-4">Disclaimer</h3>
-              <p className="text-xs text-gray-600">
+              <h3 className="font-semibold text-[#66ff66] mb-4">Disclaimer</h3>
+              <p className="text-xs text-white">
                 This platform provides AI-powered suggestions. There can be flaws in the system, 
                 so take decisions at your own risk.
               </p>
             </div>
           </div>
-          <div className="border-t border-gray-200 mt-8 pt-8 text-center text-sm text-gray-600">
+          <div className="border-t border-[#002200] mt-8 pt-8 text-center text-sm text-white">
             © 2025 Social Stock Insights Platform. Made with AI.
           </div>
         </div>

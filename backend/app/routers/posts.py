@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from app.database import get_db
 from app import models, schemas
+from app.dependencies import get_current_user
 from app.services.llm_service import LLMService
 from app.services.market_data_service import MarketDataService
 from app.services.reputation_service import ReputationService
@@ -20,6 +21,7 @@ reputation_service = ReputationService()
 async def create_post(
     post: schemas.PostCreate,
     background_tasks: BackgroundTasks,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new post and trigger LLM analysis"""
@@ -35,7 +37,7 @@ async def create_post(
         content=post.content,
         ticker=post.ticker,
         insight_type=post.insight_type,
-        author_id=1,  # TODO: Get from auth
+        author_id=current_user.id,
         market_price_at_post=market_price
     )
     db.add(db_post)
@@ -148,6 +150,7 @@ async def list_posts(
 async def create_reaction(
     post_id: int,
     reaction: schemas.ReactionCreate,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a reaction to a post"""
@@ -158,7 +161,7 @@ async def create_reaction(
     # Check if reaction already exists
     existing = db.query(models.Reaction).filter(
         models.Reaction.post_id == post_id,
-        models.Reaction.user_id == 1,  # TODO: Get from auth
+        models.Reaction.user_id == current_user.id,
         models.Reaction.reaction_type == reaction.reaction_type
     ).first()
     
@@ -168,7 +171,7 @@ async def create_reaction(
     # Create reaction
     db_reaction = models.Reaction(
         post_id=post_id,
-        user_id=1,  # TODO: Get from auth
+        user_id=current_user.id,
         reaction_type=reaction.reaction_type
     )
     db.add(db_reaction)

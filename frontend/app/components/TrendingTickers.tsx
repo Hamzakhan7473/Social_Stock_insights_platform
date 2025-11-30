@@ -44,16 +44,16 @@ export default function TrendingTickers({ tickers: initialTickers }: TrendingTic
     return `${(Math.abs(score) * 100).toFixed(0)}%`
   }
   return (
-    <div className="card-modern">
+    <div className="card-modern bg-black/90 border-[#003300]/40">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/25">
             <Zap className="w-5 h-5 text-white" strokeWidth={2.5} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Trending Tickers</h2>
-            <p className="text-xs text-gray-500 flex items-center gap-1.5">
-              <Activity className="w-3 h-3 text-green-500" />
+            <h2 className="text-xl font-bold text-white">Trending Tickers</h2>
+            <p className="text-xs text-white/60 flex items-center gap-1.5">
+              <Activity className="w-3 h-3 text-[#66ff66]" />
               <span>Live • Updated {lastUpdate.toLocaleTimeString()}</span>
             </p>
           </div>
