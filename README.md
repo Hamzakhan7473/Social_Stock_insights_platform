@@ -32,7 +32,7 @@ The platform uses GPT-4 to analyze every post, extract key information, and rank
 
 Here's how everything fits together:
 
-![System Architecture](architecture/Social%20Stock%20Insights%20-%20System%20Architecture.jpg)
+![System Architecture](./architecture/Social%20Stock%20Insights%20-%20System%20Architecture.jpg)
 
 **High-Level Overview:**
 
