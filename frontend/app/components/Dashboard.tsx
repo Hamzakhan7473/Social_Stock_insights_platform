@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import TrendingTickers from './TrendingTickers'
 import TopInsights from './TopInsights'
 import TopUsers from './TopUsers'
@@ -21,8 +21,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isMountedRef = useRef(true)
 
   useEffect(() => {
+    isMountedRef.current = true
     loadDashboard()
     
     // Refresh dashboard every 30 seconds for real-time updates (but don't show loading spinner)
@@ -30,22 +33,49 @@ export default function Dashboard() {
       loadDashboard(false) // Pass false to indicate background refresh
     }, 30000)
     
-    return () => clearInterval(interval)
+    return () => {
+      isMountedRef.current = false
+      clearInterval(interval)
+      // Cancel any pending requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
   }, [])
 
   const loadDashboard = async (showLoading: boolean = true) => {
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController()
+    
     try {
       if (showLoading) {
         setLoading(true)
       }
-      const analytics = await fetchDashboardAnalytics()
-      setData(analytics)
-      setIsInitialLoad(false)
-    } catch (err) {
-      setError('Failed to load dashboard data')
-      console.error(err)
+      const analytics = await fetchDashboardAnalytics(abortControllerRef.current.signal)
+      
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setData(analytics)
+        setIsInitialLoad(false)
+      }
+    } catch (err: any) {
+      // Ignore abort errors (they're expected when component unmounts)
+      if (err.name === 'AbortError' || err.message === 'Request aborted' || err.code === 'ERR_CANCELED') {
+        return
+      }
+      // Only log other errors if component is still mounted
+      if (isMountedRef.current) {
+        setError('Failed to load dashboard data')
+        console.error(err)
+      }
     } finally {
-      if (showLoading) {
+      // Only update loading state if component is still mounted
+      if (isMountedRef.current && showLoading) {
         setLoading(false)
       }
     }
@@ -81,39 +111,39 @@ export default function Dashboard() {
     <div className="space-y-8">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card-modern bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-300">
+        <div className="card-modern bg-gradient-to-br from-[#000000] via-[#001100] to-[#000000] text-white border border-[#66ff66]/30 shadow-xl shadow-[#66ff66]/10 hover:shadow-2xl hover:shadow-[#66ff66]/20 transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-semibold mb-2 uppercase tracking-wide">Trending Tickers</p>
-              <p className="text-4xl font-bold mb-1">{data.trending_tickers.length}</p>
-              <p className="text-blue-200 text-xs">Active symbols</p>
+              <p className="text-[#66ff66]/80 text-sm font-semibold mb-2 uppercase tracking-wide">Trending Tickers</p>
+              <p className="text-4xl font-bold mb-1 text-white">{data.trending_tickers.length}</p>
+              <p className="text-white/60 text-xs">Active symbols</p>
             </div>
-            <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30 shadow-lg">
-              <TrendingUp className="w-7 h-7 text-white" strokeWidth={2.5} />
+            <div className="w-14 h-14 bg-[#66ff66]/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-[#66ff66]/30 shadow-lg">
+              <TrendingUp className="w-7 h-7 text-[#66ff66]" strokeWidth={2.5} />
             </div>
           </div>
         </div>
-        <div className="card-modern bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 text-white shadow-xl shadow-purple-500/20 hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300">
+        <div className="card-modern bg-gradient-to-br from-[#000000] via-[#001100] to-[#000000] text-white border border-[#66ff66]/30 shadow-xl shadow-[#66ff66]/10 hover:shadow-2xl hover:shadow-[#66ff66]/20 transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-sm font-semibold mb-2 uppercase tracking-wide">Top Insights</p>
-              <p className="text-4xl font-bold mb-1">{data.top_insights.length}</p>
-              <p className="text-purple-200 text-xs">AI-ranked posts</p>
+              <p className="text-[#66ff66]/80 text-sm font-semibold mb-2 uppercase tracking-wide">Top Insights</p>
+              <p className="text-4xl font-bold mb-1 text-white">{data.top_insights.length}</p>
+              <p className="text-white/60 text-xs">AI-ranked posts</p>
             </div>
-            <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30 shadow-lg">
-              <Lightbulb className="w-7 h-7 text-white" strokeWidth={2.5} />
+            <div className="w-14 h-14 bg-[#66ff66]/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-[#66ff66]/30 shadow-lg">
+              <Lightbulb className="w-7 h-7 text-[#66ff66]" strokeWidth={2.5} />
             </div>
           </div>
         </div>
-        <div className="card-modern bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 text-white shadow-xl shadow-green-500/20 hover:shadow-2xl hover:shadow-green-500/30 transition-all duration-300">
+        <div className="card-modern bg-gradient-to-br from-[#000000] via-[#001100] to-[#000000] text-white border border-[#66ff66]/30 shadow-xl shadow-[#66ff66]/10 hover:shadow-2xl hover:shadow-[#66ff66]/20 transition-all duration-300">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm font-semibold mb-2 uppercase tracking-wide">Active Users</p>
-              <p className="text-4xl font-bold mb-1">{data.top_users.length}</p>
-              <p className="text-green-200 text-xs">Contributors</p>
+              <p className="text-[#66ff66]/80 text-sm font-semibold mb-2 uppercase tracking-wide">Active Users</p>
+              <p className="text-4xl font-bold mb-1 text-white">{data.top_users.length}</p>
+              <p className="text-white/60 text-xs">Contributors</p>
             </div>
-            <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30 shadow-lg">
-              <Users className="w-7 h-7 text-white" strokeWidth={2.5} />
+            <div className="w-14 h-14 bg-[#66ff66]/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-[#66ff66]/30 shadow-lg">
+              <Users className="w-7 h-7 text-[#66ff66]" strokeWidth={2.5} />
             </div>
           </div>
         </div>

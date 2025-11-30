@@ -41,6 +41,11 @@ class User(Base):
     # Relationships
     posts = relationship("Post", back_populates="author", cascade="all, delete-orphan")
     reactions = relationship("Reaction", back_populates="user", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="author", cascade="all, delete-orphan", foreign_keys="Comment.author_id")
+    sent_messages = relationship("DirectMessage", back_populates="sender", foreign_keys="DirectMessage.sender_id", cascade="all, delete-orphan")
+    received_messages = relationship("DirectMessage", back_populates="recipient", foreign_keys="DirectMessage.recipient_id")
+    following = relationship("Follow", back_populates="follower", foreign_keys="Follow.follower_id", cascade="all, delete-orphan")
+    followers = relationship("Follow", back_populates="following", foreign_keys="Follow.following_id")
 
 
 class Post(Base):
@@ -81,6 +86,8 @@ class Post(Base):
     # Relationships
     author = relationship("User", back_populates="posts")
     reactions = relationship("Reaction", back_populates="post", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
+    comment_count = Column(Integer, default=0)  # Denormalized count for performance
 
 
 class Reaction(Base):
@@ -123,4 +130,73 @@ class UserFeedPreference(Base):
     followed_tickers = Column(JSON, default=list)
     risk_tolerance = Column(String, default="moderate")  # "low", "moderate", "high"
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class Comment(Base):
+    """Twitter-like comments/replies to posts"""
+    __tablename__ = "comments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False, index=True)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    parent_comment_id = Column(Integer, ForeignKey("comments.id"), nullable=True, index=True)  # For nested replies
+    content = Column(Text, nullable=False)
+    like_count = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    post = relationship("Post", back_populates="comments")
+    author = relationship("User", back_populates="comments", foreign_keys=[author_id])
+    parent_comment = relationship("Comment", remote_side=[id], backref="replies")
+    reactions = relationship("CommentReaction", back_populates="comment", cascade="all, delete-orphan")
+
+
+class CommentReaction(Base):
+    """Reactions to comments (like)"""
+    __tablename__ = "comment_reactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("comments.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    comment = relationship("Comment", back_populates="reactions")
+    user = relationship("User")
+
+
+class DirectMessage(Base):
+    """Direct messages between users"""
+    __tablename__ = "direct_messages"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    recipient_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    
+    # Relationships
+    sender = relationship("User", back_populates="sent_messages", foreign_keys=[sender_id])
+    recipient = relationship("User", back_populates="received_messages", foreign_keys=[recipient_id])
+
+
+class Follow(Base):
+    """User following relationships"""
+    __tablename__ = "follows"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    follower_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    following_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    
+    # Relationships
+    follower = relationship("User", back_populates="following", foreign_keys=[follower_id])
+    following = relationship("User", back_populates="followers", foreign_keys=[following_id])
+    
+    # Unique constraint: prevent duplicate follows
+    __table_args__ = (
+        {"sqlite_autoincrement": True},
+    )
 

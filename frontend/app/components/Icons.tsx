@@ -44,6 +44,19 @@ import {
   Medal,
   Trophy,
   Inbox,
+  Loader2,
+  Plus,
+  Globe,
+  AlertTriangle,
+  MessageCircle,
+  Reply,
+  Send,
+  UserPlus,
+  Heart,
+  LogIn,
+  Mail,
+  Lock,
+  EyeOff,
 } from 'lucide-react'
 
 // Re-export all icons
@@ -90,6 +103,19 @@ export {
   Medal,
   Trophy,
   Inbox,
+  Loader2,
+  Plus,
+  Globe,
+  AlertTriangle,
+  MessageCircle,
+  Reply,
+  Send,
+  UserPlus,
+  Heart,
+  LogIn,
+  Mail,
+  Lock,
+  EyeOff,
 }
 
 // Alias for ChartUp

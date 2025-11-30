@@ -61,16 +61,16 @@ export default function SentimentIndicator({ sentiment }: SentimentIndicatorProp
   }
 
   return (
-    <div className="card-modern">
+    <div className="card-modern bg-black/90 border-[#003300]/40">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-            <BarChart3 className="w-5 h-5 text-white" strokeWidth={2.5} />
+          <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#004d00] to-[#003300] flex items-center justify-center border border-[#66ff66]/30">
+            <BarChart3 className="w-5 h-5 text-[#66ff66]" strokeWidth={2.5} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Market Sentiment</h2>
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              <Activity className="w-3 h-3 text-green-500" />
+            <h2 className="text-xl font-bold text-white">Market Sentiment</h2>
+            <p className="text-xs text-white/60 flex items-center gap-1">
+              <Activity className="w-3 h-3 text-[#66ff66]" />
               Live
             </p>
           </div>

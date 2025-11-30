@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     
     # Reputation
     REPUTATION_DECAY_FACTOR: float = 0.95
+    
+    # JWT Secret Key
+    SECRET_KEY: str = "your-secret-key-change-in-production-use-env-var"
     MIN_REPUTATION_FOR_VERIFIED: float = 50.0
     
     class Config:
