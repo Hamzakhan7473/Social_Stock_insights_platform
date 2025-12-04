@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import ExplanationTooltip from './ExplanationTooltip'
 import Comments from './Comments'
+import RankingFactors from './RankingFactors'
 import { ThumbsUp, ThumbsDown, TrendingUp, TrendingDown, CheckCircle2, Eye, Lightbulb, Clock, User, Star, MessageCircle } from './Icons'
 
 interface PostCardProps {
@@ -32,14 +33,15 @@ export default function PostCard({ post }: PostCardProps) {
             </h3>
             {post.quality_score && (
               <div className="flex-shrink-0">
-                <div className={`px-4 py-2 rounded-xl font-bold text-sm ${
+                <div className={`px-4 py-2 rounded-xl font-bold text-sm relative ${
                   post.quality_score >= 80 ? 'bg-[#004d00] text-[#66ff66] border border-[#66ff66]/30' :
                   post.quality_score >= 60 ? 'bg-[#003300] text-white border border-[#004d00]' :
                   'bg-[#002200] text-white/70 border border-[#003300]'
                 }`}>
+                  <span className="absolute -top-2 -right-2 text-xs bg-purple-600 text-white px-1.5 py-0.5 rounded-full">🤖 AI</span>
                   {post.quality_score.toFixed(0)}
                 </div>
-                <div className="text-xs text-white/50 text-center mt-1">Quality</div>
+                <div className="text-xs text-white/50 text-center mt-1">Quality Score</div>
               </div>
             )}
           </div>
@@ -111,14 +113,15 @@ export default function PostCard({ post }: PostCardProps) {
       )}
 
       {post.llm_explanation && (
-        <div className="mb-4 p-4 bg-[#002200] border-2 border-[#66ff66]/30 rounded-xl">
+        <div className="mb-4 p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20 border-2 border-purple-500/30 rounded-xl">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 bg-[#004d00] rounded-lg flex items-center justify-center flex-shrink-0 border border-[#66ff66]/30">
-              <Lightbulb className="w-5 h-5 text-[#66ff66]" strokeWidth={2.5} />
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
+              <span className="text-lg">🤖</span>
             </div>
             <div className="flex-1">
-              <div className="text-sm font-bold text-[#66ff66] mb-2 flex items-center gap-2">
-                Why this is recommended
+              <div className="text-sm font-bold text-purple-300 mb-2 flex items-center gap-2">
+                <span>AI Recommendation</span>
+                <span className="text-xs bg-purple-600/30 text-purple-200 px-2 py-0.5 rounded-full">LLM-Powered</span>
               </div>
               <div className="text-sm text-white/80 leading-relaxed">{post.llm_explanation}</div>
             </div>
@@ -159,6 +162,9 @@ export default function PostCard({ post }: PostCardProps) {
           <span>{post.view_count || 0}</span>
         </div>
       </div>
+
+      {/* AI Ranking Factors */}
+      <RankingFactors post={post} />
 
       {showComments && <Comments postId={post.id} />}
     </div>

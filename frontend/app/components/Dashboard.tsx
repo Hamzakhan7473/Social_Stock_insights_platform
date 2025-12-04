@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import TrendingTickers from './TrendingTickers'
 import TopInsights from './TopInsights'
 import TopUsers from './TopUsers'
 import SentimentIndicator from './SentimentIndicator'
+import MarketIntelligence from './MarketIntelligence'
+import RankingStrategy from './RankingStrategy'
 import { DashboardSkeleton } from './SkeletonLoader'
 import { fetchDashboardAnalytics } from '../lib/api'
 import { TrendingUp, Lightbulb, Users } from './Icons'
@@ -16,17 +18,97 @@ interface DashboardData {
   aggregated_sentiment: any
 }
 
+// Simple cache for dashboard data
+let dashboardCache: { data: DashboardData | null; timestamp: number } = { data: null, timestamp: 0 }
+const CACHE_TTL = 15000 // 15 seconds cache
+
 export default function Dashboard() {
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<DashboardData | null>(() => {
+    // Initialize from cache if available and fresh
+    if (dashboardCache.data && Date.now() - dashboardCache.timestamp < CACHE_TTL) {
+      return dashboardCache.data
+    }
+    return null
+  })
+  const [loading, setLoading] = useState(!dashboardCache.data)
   const [error, setError] = useState<string | null>(null)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(!dashboardCache.data)
+  const [rankingStrategy, setRankingStrategy] = useState('balanced')
   const abortControllerRef = useRef<AbortController | null>(null)
   const isMountedRef = useRef(true)
+  const loadingRef = useRef(false)
+
+  // Extract unique tickers from trending data
+  const activeTickers = data?.trending_tickers?.map(t => t.ticker).filter(Boolean) || ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'GOOGL']
+
+  const loadDashboard = useCallback(async (showLoading: boolean = true) => {
+    // Prevent duplicate requests
+    if (loadingRef.current) return
+    
+    // Check cache first
+    if (!showLoading && dashboardCache.data && Date.now() - dashboardCache.timestamp < CACHE_TTL) {
+      return
+    }
+
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController()
+    loadingRef.current = true
+    
+    try {
+      if (showLoading && !dashboardCache.data) {
+        setLoading(true)
+      }
+      
+      const analytics = await fetchDashboardAnalytics(abortControllerRef.current.signal)
+      
+      // Update cache
+      dashboardCache = { data: analytics, timestamp: Date.now() }
+      
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setData(analytics)
+        setIsInitialLoad(false)
+        setError(null)
+      }
+    } catch (err: any) {
+      // Ignore abort errors (they're expected when component unmounts)
+      if (err.name === 'AbortError' || err.message === 'Request aborted' || err.code === 'ERR_CANCELED') {
+        return
+      }
+      // Only set error if no cached data available
+      if (isMountedRef.current && !dashboardCache.data) {
+        setError('Failed to load dashboard data')
+        console.error(err)
+      }
+    } finally {
+      loadingRef.current = false
+      if (isMountedRef.current && showLoading) {
+        setLoading(false)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     isMountedRef.current = true
-    loadDashboard()
+    loadingRef.current = false
+    
+    // Reset error state on mount
+    setError(null)
+    
+    // If we have cached data, show it immediately
+    if (dashboardCache.data && Date.now() - dashboardCache.timestamp < CACHE_TTL) {
+      setData(dashboardCache.data)
+      setLoading(false)
+      setIsInitialLoad(false)
+    } else {
+      // Load fresh data
+      loadDashboard()
+    }
     
     // Refresh dashboard every 30 seconds for real-time updates (but don't show loading spinner)
     const interval = setInterval(() => {
@@ -41,47 +123,11 @@ export default function Dashboard() {
         abortControllerRef.current.abort()
       }
     }
-  }, [])
-
-  const loadDashboard = async (showLoading: boolean = true) => {
-    // Cancel previous request if still pending
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController()
-    
-    try {
-      if (showLoading) {
-        setLoading(true)
-      }
-      const analytics = await fetchDashboardAnalytics(abortControllerRef.current.signal)
-      
-      // Only update state if component is still mounted
-      if (isMountedRef.current) {
-        setData(analytics)
-        setIsInitialLoad(false)
-      }
-    } catch (err: any) {
-      // Ignore abort errors (they're expected when component unmounts)
-      if (err.name === 'AbortError' || err.message === 'Request aborted' || err.code === 'ERR_CANCELED') {
-        return
-      }
-      // Only log other errors if component is still mounted
-      if (isMountedRef.current) {
-        setError('Failed to load dashboard data')
-        console.error(err)
-      }
-    } finally {
-      // Only update loading state if component is still mounted
-      if (isMountedRef.current && showLoading) {
-        setLoading(false)
-      }
-    }
-  }
+  }, [loadDashboard])
 
   const handleRetry = () => {
+    setError(null)
+    setIsInitialLoad(true)
     loadDashboard(true)
   }
 
@@ -89,12 +135,12 @@ export default function Dashboard() {
     return <DashboardSkeleton />
   }
 
-  if (error || !data) {
+  if (error) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="card-modern max-w-md text-center">
           <div className="text-red-500 text-lg font-semibold mb-2">
-            {error || 'Failed to load data'}
+            {error}
           </div>
           <button 
             onClick={handleRetry}
@@ -105,6 +151,10 @@ export default function Dashboard() {
         </div>
       </div>
     )
+  }
+
+  if (!data) {
+    return <DashboardSkeleton />
   }
 
   return (
@@ -147,6 +197,15 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Live Market Intelligence & Ranking Strategy */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MarketIntelligence tickers={activeTickers} />
+        <RankingStrategy 
+          currentStrategy={rankingStrategy} 
+          onStrategyChange={setRankingStrategy} 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

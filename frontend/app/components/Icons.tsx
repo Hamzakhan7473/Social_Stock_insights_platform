@@ -22,6 +22,7 @@ import {
   ThumbsDown,
   HelpCircle,
   ChevronRight,
+  ChevronDown,
   Menu,
   X,
   Search,
@@ -57,6 +58,7 @@ import {
   Mail,
   Lock,
   EyeOff,
+  Shuffle,
 } from 'lucide-react'
 
 // Re-export all icons
@@ -81,6 +83,7 @@ export {
   ThumbsDown,
   HelpCircle,
   ChevronRight,
+  ChevronDown,
   Menu,
   X,
   Search,
@@ -116,6 +119,7 @@ export {
   Mail,
   Lock,
   EyeOff,
+  Shuffle,
 }
 
 // Alias for ChartUp

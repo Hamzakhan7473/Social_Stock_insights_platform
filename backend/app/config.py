@@ -8,7 +8,7 @@ from typing import List, Union
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql://user:password@localhost/social_stock_insights"
+    DATABASE_URL: str = "sqlite:///./social_stock_insights.db"
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
