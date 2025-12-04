@@ -13,7 +13,16 @@ export default function TrendingTickers({ tickers: initialTickers }: TrendingTic
   const [lastUpdate, setLastUpdate] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  // Sync with parent props
+  useEffect(() => {
+    if (initialTickers && initialTickers.length > 0) {
+      setTickers(initialTickers)
+      setLastUpdate(new Date())
+    }
+  }, [initialTickers])
+
   const refreshData = async () => {
+    if (isRefreshing) return
     setIsRefreshing(true)
     try {
       const updated = await fetchTrendingTickers(10)
@@ -27,8 +36,8 @@ export default function TrendingTickers({ tickers: initialTickers }: TrendingTic
   }
 
   useEffect(() => {
-    // Refresh trending tickers every 30 seconds
-    const interval = setInterval(refreshData, 30000) // 30 seconds
+    // Refresh trending tickers every 45 seconds (slightly longer to reduce API calls)
+    const interval = setInterval(refreshData, 45000)
 
     return () => clearInterval(interval)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

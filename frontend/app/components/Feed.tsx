@@ -1,34 +1,36 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import PostCard from './PostCard'
 import CreatePost from './CreatePost'
 import { fetchPersonalizedFeed } from '../lib/api'
 import { RefreshCw, Sparkles, Inbox } from './Icons'
 
+// Simple cache for feed data
+let feedCache: { posts: any[]; hasNext: boolean; timestamp: number } = { posts: [], hasNext: false, timestamp: 0 }
+const CACHE_TTL = 20000 // 20 seconds cache
+
 export default function Feed() {
-  const [posts, setPosts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [posts, setPosts] = useState<any[]>(() => feedCache.posts)
+  const [loading, setLoading] = useState(feedCache.posts.length === 0)
   const [page, setPage] = useState(1)
-  const [hasNext, setHasNext] = useState(false)
+  const [hasNext, setHasNext] = useState(feedCache.hasNext)
   const abortControllerRef = useRef<AbortController | null>(null)
   const isMountedRef = useRef(true)
+  const loadingRef = useRef(false)
 
-  useEffect(() => {
-    isMountedRef.current = true
-    loadFeed()
+  const loadFeed = useCallback(async (forceFetch = false) => {
+    // Prevent duplicate requests
+    if (loadingRef.current) return
     
-    return () => {
-      isMountedRef.current = false
-      // Cancel any pending requests
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+    // Check cache for page 1
+    if (!forceFetch && page === 1 && feedCache.posts.length > 0 && Date.now() - feedCache.timestamp < CACHE_TTL) {
+      setPosts(feedCache.posts)
+      setHasNext(feedCache.hasNext)
+      setLoading(false)
+      return
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page])
 
-  const loadFeed = async () => {
     // Cancel previous request if still pending
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
@@ -36,15 +38,20 @@ export default function Feed() {
     
     // Create new abort controller for this request
     abortControllerRef.current = new AbortController()
+    loadingRef.current = true
     
     try {
-      setLoading(true)
-      const feed = await fetchPersonalizedFeed(page, abortControllerRef.current.signal)
+      if (posts.length === 0) {
+        setLoading(true)
+      }
+      const feed = await fetchPersonalizedFeed(page, 20, abortControllerRef.current.signal)
       
       // Only update state if component is still mounted
       if (isMountedRef.current) {
         if (page === 1) {
           setPosts(feed.posts)
+          // Update cache
+          feedCache = { posts: feed.posts, hasNext: feed.has_next, timestamp: Date.now() }
         } else {
           setPosts(prevPosts => [...prevPosts, ...feed.posts])
         }
@@ -60,17 +67,33 @@ export default function Feed() {
         console.error('Failed to load feed:', err)
       }
     } finally {
+      loadingRef.current = false
       // Only update loading state if component is still mounted
       if (isMountedRef.current) {
         setLoading(false)
       }
     }
-  }
+  }, [page, posts.length])
+
+  useEffect(() => {
+    isMountedRef.current = true
+    loadingRef.current = false
+    loadFeed()
+    
+    return () => {
+      isMountedRef.current = false
+      // Cancel any pending requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [loadFeed])
 
   const handlePostCreated = () => {
-    // Reload feed when a new post is created
+    // Reload feed when a new post is created - force fetch to bypass cache
     setPage(1)
-    loadFeed()
+    feedCache = { posts: [], hasNext: false, timestamp: 0 } // Clear cache
+    loadFeed(true)
   }
 
   return (
